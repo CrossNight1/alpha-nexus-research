@@ -1,0 +1,46 @@
+Metadata-Version: 2.4
+Name: AlphaNexusResearch
+Version: 0.1.9
+Summary: Research helper library for Alpha Nexus platform
+Author-email: Alpha Nexus <contact@the20.sg>
+Project-URL: Homepage, https://alpha-nexus.the20.sg
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: requests
+Requires-Dist: pandas
+Requires-Dist: pyarrow
+Requires-Dist: plotly
+
+# AlphaNexusResearch
+
+A Python research helper library for the Alpha Nexus platform. Designed specifically for Google Colab environments to seamlessly fetch historical data and execute vectorized backtests using the remote Alpha Nexus engine.
+
+## Installation
+
+```bash
+pip install git+https://github.com/your-org/alpha-nexus-research.git
+```
+
+## Quick Start
+
+```python
+import AlphaNexusResearch as an
+
+# Initialize connection
+an.init(token="YOUR_SESSION_TOKEN")
+
+# Fetch data
+df = an.data.history(symbol="BTCUSDT", asset_class="crypto", interval="1h")
+
+# Create simple signal (e.g., Buy and Hold)
+df['position'] = 1
+
+# Run vectorized backtest on the server
+results = an.backtest.run_backtest(df)
+
+# Visualize results
+an.plot.plot_equity_curve(results)
+```

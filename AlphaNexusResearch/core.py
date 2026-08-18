@@ -54,20 +54,20 @@ class VectorizedResult:
             series_list = []
             for series_name, series_data in chart_series.items():
                 vals = series_data.get('values', {})
+                df = pd.DataFrame()
                 if isinstance(vals, dict) and 't' in vals and 'v' in vals:
                     df = pd.DataFrame({'timestamp': vals['t'], series_name: vals['v']})
                 elif isinstance(vals, list) and len(vals) > 0 and isinstance(vals[0], dict):
                     df = pd.DataFrame([{'timestamp': d.get('x'), series_name: d.get('y')} for d in vals])
                 elif isinstance(vals, list) and len(vals) > 0 and isinstance(vals[0], list):
                     df = pd.DataFrame(vals, columns=['timestamp', series_name])
-                else:
-                    continue
                     
-                if not df.empty:
+                if not df.empty and 'timestamp' in df.columns:
                     if df['timestamp'].iloc[0] > 1e11:
                         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
                     else:
                         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+                    df = df.drop_duplicates(subset=['timestamp'], keep='last')
                     series_list.append(df.set_index('timestamp'))
                     
             if not series_list:
@@ -78,8 +78,19 @@ class VectorizedResult:
             if len(combined_df.columns) == 1:
                 return combined_df.iloc[:, 0]
             return combined_df
-        except Exception:
+        except Exception as e:
             return chart_series
+
+    def rolling_summary(self) -> pd.DataFrame:
+        """
+        Returns the rolling yearly performance summary as a Pandas DataFrame.
+        """
+        rw = self.metrics.get("rollingWindow", {})
+        cols = rw.get("cols", [])
+        data = rw.get("data", [])
+        if not cols or not data:
+            return pd.DataFrame()
+        return pd.DataFrame(data, columns=cols).set_index("period")
 
     def plot(self, drop_series=None):
         """
@@ -97,7 +108,7 @@ class VectorizedResult:
             'portfolio_turnover', 'rolling_sharpe', 'rolling_beta', 
             'exposure', 'trading_fees', 'daily_weights'
         ]
-        return f"<VectorizedResult Object>\nAvailable attributes:\n  - " + "\n  - ".join(attrs) + "\n\nTip: Call results.summary() to view the statistics table."
+        return f"<VectorizedResult>\n\nAvailable attributes:\n  - " + "\n  - ".join(attrs) + "\n\nTip:\n- Call results.summary() to view the statistics table.\n- Call results.rolling_summary() to view the rolling yearly performance summary.\n- Call results.plot() to view the charts."
 
     def summary(self):
         """Displays the summary table in notebooks without returning the object."""
@@ -113,7 +124,14 @@ class VectorizedResult:
             {'Metric': 'Total ROI (%)', 'Value': self.roi}
         ])
         
-        html_table = pd.concat([top_rows, df], ignore_index=True).set_index('Metric').to_html()
+        full_df = pd.concat([top_rows, df], ignore_index=True).set_index('Metric')
         
-        from IPython.display import display, HTML
-        display(HTML(html_table))
+        try:
+            from IPython import get_ipython
+            from IPython.display import display, HTML
+            if get_ipython() is not None:
+                display(HTML(full_df.to_html()))
+            else:
+                print(full_df.to_string())
+        except Exception:
+            print(full_df.to_string())

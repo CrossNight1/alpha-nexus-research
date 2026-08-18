@@ -40,6 +40,11 @@ def plot_results(results, drop_series=None):
             if name == 'Exposure' and isinstance(data, pd.DataFrame):
                 if 'Exposure Ratio' in data.columns:
                     data = data[['Exposure Ratio']]
+            # specifically for Trading Fees, only show Cumulative Fee if it exists
+            elif name == 'Trading Fees' and isinstance(data, pd.DataFrame):
+                cum_col = next((c for c in data.columns if 'cumulative' in c.lower()), None)
+                if cum_col:
+                    data = data[[cum_col]]
                     
             valid_metrics[name] = data
             
@@ -78,15 +83,10 @@ def plot_results(results, drop_series=None):
             for col in data.columns:
                 # Use bar chart for weights/turnover/fees, otherwise lines
                 mode = 'lines'
-                plot_type = go.Scatter
-                if name in ['Daily Weights', 'Portfolio Turnover', 'Trading Fees']:
-                    # Plotly doesn't natively support stacking in Scatter without fill, but we can just use Lines for simplicity or Bar
-                    fig.add_trace(go.Scatter(x=data.index, y=data[col], name=col, mode='lines', stackgroup='one' if name == 'Daily Weights' else None, visible=is_visible), row=2, col=1)
+                if name == 'Drawdown':
+                    fig.add_trace(go.Scatter(x=data.index, y=data[col], name=col, mode='lines', fill='tozeroy', visible=is_visible), row=2, col=1)
                 else:
-                    if name == 'Drawdown':
-                        fig.add_trace(go.Scatter(x=data.index, y=data[col], name=col, mode='lines', fill='tozeroy', visible=is_visible), row=2, col=1)
-                    else:
-                        fig.add_trace(go.Scatter(x=data.index, y=data[col], name=col, mode='lines', visible=is_visible), row=2, col=1)
+                    fig.add_trace(go.Scatter(x=data.index, y=data[col], name=col, mode='lines', visible=is_visible), row=2, col=1)
                 
                 indices.append(total_traces)
                 total_traces += 1
@@ -127,7 +127,8 @@ def plot_results(results, drop_series=None):
         )
         
     fig.update_layout(
-        height=600, 
+        height=600,
+        width=1200,
         template="plotly_white",
         margin=dict(l=40, r=40, t=60, b=40),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)

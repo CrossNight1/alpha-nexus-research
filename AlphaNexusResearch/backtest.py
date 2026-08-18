@@ -29,7 +29,7 @@ def build_position(asset: Union[AssetData, List[AssetData]], position_series: Un
     
     return PositionTarget(asset.info, position_series)
 
-def run(positions, capital: float = 100000.0, broker: str = "binance", auto_normalize: bool = True) -> dict:
+def run(positions, capital: float = 100000.0, broker: str = "backtest_default", auto_normalize: bool = True) -> dict:
     """
     Run a vectorized backtest on the remote Alpha Nexus Go-Engine.
     
