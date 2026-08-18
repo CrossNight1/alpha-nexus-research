@@ -3,7 +3,12 @@ import requests
 import io
 from .config import get_token, get_base_url
 
-def history(symbol: str, asset_class: str, interval: str, exchange: str = None) -> pd.DataFrame:
+class AssetData:
+    def __init__(self, info: dict, data: pd.DataFrame):
+        self.info = info
+        self.data = data
+
+def history(symbol: str, asset_class: str, interval: str, exchange: str = 'binance') -> AssetData:
     """
     Fetch historical data from the Alpha Nexus Data Warehouse.
     
@@ -14,7 +19,7 @@ def history(symbol: str, asset_class: str, interval: str, exchange: str = None) 
         exchange (str, optional): Exchange name (e.g., 'binance').
         
     Returns:
-        pd.DataFrame: A Pandas DataFrame containing the historical OHLCV data.
+        AssetData: An object containing metadata and historical OHLCV data.
     """
     base_url = get_base_url()
     token = get_token()
@@ -23,10 +28,9 @@ def history(symbol: str, asset_class: str, interval: str, exchange: str = None) 
     params = {
         "symbol": symbol,
         "asset_class": asset_class,
-        "interval": interval
+        "interval": interval,
+        "exchange": exchange
     }
-    if exchange:
-        params["exchange"] = exchange
         
     headers = {
         "Authorization": f"Bearer {token}"
@@ -38,5 +42,5 @@ def history(symbol: str, asset_class: str, interval: str, exchange: str = None) 
     if resp.status_code != 200:
         raise Exception(f"Failed to fetch data: {resp.status_code} - {resp.text}")
         
-    # Load binary parquet stream directly to DataFrame
-    return pd.read_parquet(io.BytesIO(resp.content))
+    df = pd.read_parquet(io.BytesIO(resp.content))
+    return AssetData(info=params, data=df)

@@ -1,15 +1,33 @@
 import pandas as pd
 import requests
 import io
+import time
+import json
 from .config import get_token, get_base_url
+from .data import AssetData
 
-def run_backtest(df: pd.DataFrame) -> dict:
+class PositionTarget:
+    def __init__(self, info: dict, positions: pd.Series):
+        self.info = info
+        self.positions = positions
+
+def build_position(asset: AssetData, position_series: pd.Series) -> PositionTarget:
+    """
+    Package metadata with target positions.
+    """
+    if not isinstance(position_series, pd.Series):
+        raise ValueError("Positions must be a Pandas Series.")
+    
+    return PositionTarget(asset.info, position_series)
+
+def run(positions, capital: float = 100000.0, broker: str = "binance") -> dict:
     """
     Run a vectorized backtest on the remote Alpha Nexus Go-Engine.
     
     Args:
-        df (pd.DataFrame): The input DataFrame. Must contain 'timestamp', 'price' (or 'close'), and 'position'.
-                           'position' should be a numeric column ranging from -1 (Short) to 1 (Long).
+        positions: A single PositionTarget or a list of PositionTargets.
+        capital: Initial capital for the backtest.
+        broker: Broker fee/slippage model identifier.
                            
     Returns:
         dict: Backtest metrics and results returned by the server.
@@ -17,52 +35,89 @@ def run_backtest(df: pd.DataFrame) -> dict:
     token = get_token()
     base_url = get_base_url()
     
-    # 1. Validation
-    required_cols = ['position']
-    if 'position' not in df.columns:
-        raise ValueError("DataFrame must contain a 'position' column with values [-1, 1].")
+    if not isinstance(positions, list):
+        positions = [positions]
         
-    price_col = 'price' if 'price' in df.columns else ('close' if 'close' in df.columns else None)
-    if not price_col:
-        raise ValueError("DataFrame must contain a 'price' or 'close' column.")
-        
-    ts_col = 'timestamp' if 'timestamp' in df.columns else ('time' if 'time' in df.columns else None)
-    if not ts_col and df.index.name not in ['timestamp', 'time'] and not isinstance(df.index, pd.DatetimeIndex):
-        raise ValueError("DataFrame must have a 'timestamp' column or a DatetimeIndex.")
-        
-    # 2. Extract necessary columns
-    extract_cols = [price_col, 'position']
-    if ts_col:
-        extract_cols.insert(0, ts_col)
-        df_upload = df[extract_cols].copy()
-    else:
-        df_upload = df[extract_cols].copy()
-        df_upload['timestamp'] = df.index
-        
-    # Standardize names
-    df_upload.rename(columns={price_col: 'price'}, inplace=True)
+    if len(positions) == 0:
+        raise ValueError("Positions list cannot be empty.")
+
+    print(f"Preparing Vectorized Backtest for {len(positions)} assets...")
+
+    # 1. Gather config
+    feeds_config = [p.info for p in positions]
+    config_dict = {
+        "capital": capital,
+        "broker": broker,
+        "feeds": feeds_config
+    }
     
-    # 3. Serialize to Parquet Bytes
-    print("Optimizing and serializing data payload (Parquet)...")
+    # 2. Build Wide-Format Matrix
+    series_list = []
+    for p in positions:
+        sym = p.info['symbol'].upper()
+        series_list.append(p.positions.rename(sym))
+        
+    combined_df = pd.concat(series_list, axis=1)
+    
+    # Ensure index is named timestamp for the Arrow loader
+    if combined_df.index.name not in ['timestamp', 'time']:
+        combined_df.index.name = 'timestamp'
+        
+    combined_df.reset_index(inplace=True)
+
+    # 3. Serialize to Parquet
     buffer = io.BytesIO()
-    df_upload.to_parquet(buffer, index=False)
+    combined_df.to_parquet(buffer, index=False)
     buffer.seek(0)
     
-    # 4. Upload to Server
+    # 4. Upload to API Gateway
     endpoint = f"{base_url}/api/research/backtest"
     headers = {
         "Authorization": f"Bearer {token}"
     }
     
-    print("Uploading to Alpha Nexus server for Vectorized Execution...")
-    files = {
-        'file': ('backtest_data.parquet', buffer, 'application/octet-stream')
-    }
-    
-    resp = requests.post(endpoint, headers=headers, files=files)
+    print("Uploading wide-format weight matrix to Server...")
+    resp = requests.post(
+        endpoint,
+        headers=headers,
+        data={'config': json.dumps(config_dict)},
+        files={'file': ('signal.parquet', buffer, 'application/octet-stream')}
+    )
     
     if resp.status_code != 200:
-        raise Exception(f"Backtest execution failed: {resp.status_code} - {resp.text}")
+        raise Exception(f"Backtest launch failed: {resp.text}")
         
+    launch_data = resp.json()
+    session_id = launch_data.get('session_id')
+    print(f"Engine launched successfully. Session ID: {session_id}")
+    
+    # 5. Poll for completion
+    print("Waiting for results...")
+    metrics_endpoint = f"{base_url}/api/runs/{session_id}/metrics"
+    status_endpoint = f"{base_url}/api/runs/{session_id}/status"
+    
+    while True:
+        try:
+            status_resp = requests.get(status_endpoint, headers=headers)
+            if status_resp.status_code == 200:
+                status_data = status_resp.json()
+                status = status_data.get('status')
+                if status in ['completed', 'failed', 'crashed']:
+                    if status != 'completed':
+                        raise Exception(f"Backtest {status}")
+                        
+                    # Fetch metrics
+                    metrics_resp = requests.get(metrics_endpoint, headers=headers)
+                    if metrics_resp.status_code == 200:
+                        return metrics_resp.json()
+                    else:
+                        raise Exception(f"Failed to fetch metrics: {metrics_resp.text}")
+        except Exception as e:
+            if "Backtest failed" in str(e) or "Backtest crashed" in str(e):
+                raise
+            # Ignore network transient errors while polling
+            pass
+            
+        time.sleep(0.5)        
     print("Backtest completed successfully!")
     return resp.json()
