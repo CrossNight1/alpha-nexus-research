@@ -109,7 +109,8 @@ def run(positions, capital: float = 100000.0, broker: str = "binance") -> dict:
                     # Fetch metrics
                     metrics_resp = requests.get(metrics_endpoint, headers=headers)
                     if metrics_resp.status_code == 200:
-                        return metrics_resp.json()
+                        from .results import VectorizedResult
+                        return VectorizedResult(metrics_resp.json())
                     else:
                         raise Exception(f"Failed to fetch metrics: {metrics_resp.text}")
         except Exception as e:
