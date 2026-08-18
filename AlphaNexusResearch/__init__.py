@@ -14,7 +14,8 @@ def init(token: str, base_url: str = "https://alpha-nexus.the20.sg"):
     print(f"Alpha Nexus Research initialized successfully. Target: {base_url}")
 
 # Expose sub-modules
+from . import core
 from . import data
 from . import backtest
-from . import plot
+from . import visualize
 from . import helper
