@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "AlphaNexusResearch"
+version = "0.1.0"
+authors = [
+  { name="Alpha Nexus", email="contact@the20.sg" },
+]
+description = "Research helper library for Alpha Nexus platform"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests",
+    "pandas",
+    "pyarrow",
+    "plotly"
+]
+
+[project.urls]
+"Homepage" = "https://alpha-nexus.the20.sg"
