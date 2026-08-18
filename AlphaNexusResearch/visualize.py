@@ -129,6 +129,24 @@ def plot_results(results, drop_series=None):
     )
     
     fig.show()
+
+def plot_signals(df: pd.DataFrame, position_col='position', price_col='close'):
+    """
+    Plot the price chart with Buy/Sell markers based on the position column.
+    """
+    fig = go.Figure()
+    
+    # Plot price
+    fig.add_trace(go.Scatter(
+        x=df.index if isinstance(df.index, pd.DatetimeIndex) else df['timestamp'],
+        y=df[price_col],
+        mode='lines',
+        name='Price',
+        line=dict(color='gray', width=1)
+    ))
+    
+    pos = df[position_col]
+    diff = pos.diff()
     
     buys = df[diff > 0]
     sells = df[diff < 0]
@@ -149,5 +167,5 @@ def plot_results(results, drop_series=None):
         marker=dict(symbol='triangle-down', size=10, color='red')
     ))
     
-    fig.update_layout(title="Trading Signals", template='plotly_dark')
+    fig.update_layout(title="Trading Signals", template="plotly_dark")
     fig.show()

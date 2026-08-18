@@ -4,23 +4,32 @@ import io
 import time
 import json
 from .config import get_token, get_base_url
-from .data import AssetData
+from .core import AssetData, PositionTarget, VectorizedResult
 
-class PositionTarget:
-    def __init__(self, info: dict, positions: pd.Series):
-        self.info = info
-        self.positions = positions
+from typing import Union, List
 
-def build_position(asset: AssetData, position_series: pd.Series) -> PositionTarget:
+def build_position(asset: Union[AssetData, List[AssetData]], position_series: Union[pd.Series, List[pd.Series]]) -> Union[PositionTarget, List[PositionTarget]]:
     """
     Package metadata with target positions.
+    Supports single AssetData and pd.Series, or lists of AssetData and pd.Series.
     """
+    if isinstance(asset, list) and isinstance(position_series, list):
+        if len(asset) != len(position_series):
+            raise ValueError("Length of assets and position_series must match.")
+        
+        targets = []
+        for a, s in zip(asset, position_series):
+            if not isinstance(s, pd.Series):
+                raise ValueError(f"Positions for {a.info.get('symbol')} must be a Pandas Series.")
+            targets.append(PositionTarget(a.info, s))
+        return targets
+        
     if not isinstance(position_series, pd.Series):
         raise ValueError("Positions must be a Pandas Series.")
     
     return PositionTarget(asset.info, position_series)
 
-def run(positions, capital: float = 100000.0, broker: str = "binance", auto_normalize: bool = False) -> dict:
+def run(positions, capital: float = 100000.0, broker: str = "binance", auto_normalize: bool = True) -> dict:
     """
     Run a vectorized backtest on the remote Alpha Nexus Go-Engine.
     
@@ -116,14 +125,15 @@ def run(positions, capital: float = 100000.0, broker: str = "binance", auto_norm
                     # Fetch metrics
                     metrics_resp = requests.get(metrics_endpoint, headers=headers)
                     if metrics_resp.status_code == 200:
-                        from .results import VectorizedResult
                         return VectorizedResult(metrics_resp.json())
                     else:
                         raise Exception(f"Failed to fetch metrics: {metrics_resp.text}")
         except Exception as e:
             if "Backtest failed" in str(e) or "Backtest crashed" in str(e):
                 raise
-            # Ignore network transient errors while polling
+            # Ignore network transient errors while polling, but print it if it's a code error
+            if not isinstance(e, (requests.exceptions.RequestException, json.JSONDecodeError)):
+                print(f"Polling error: {e}")
             pass
             
         time.sleep(0.5)        
