@@ -51,6 +51,9 @@ class VectorizedResult:
         
         return pd.concat([top_rows, df], ignore_index=True).set_index('Metric').to_html()
 
+    def __repr__(self):
+        return "<VectorizedResult: Call .summary() for statistics, or access time-series properties like .strategy_equity>"
+
     def summary(self):
         """Displays the summary table in notebooks without returning the object."""
         from IPython.display import display, HTML
