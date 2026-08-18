@@ -27,14 +27,49 @@ class VectorizedResult:
         
         # Time-series charts for easy plotting
         charts = self.metrics.get('charts', {})
-        self.strategy_equity = charts.get('Strategy Equity', {}).get('series', [])
-        self.drawdown = charts.get('Drawdown', {}).get('series', [])
-        self.portfolio_turnover = charts.get('Portfolio Turnover', {}).get('series', [])
-        self.rolling_sharpe = charts.get('Rolling Sharpe', {}).get('series', [])
-        self.rolling_beta = charts.get('Rolling Beta', {}).get('series', [])
-        self.exposure = charts.get('Exposure', {}).get('series', [])
-        self.trading_fees = charts.get('Trading Fees', {}).get('series', [])
-        self.daily_weights = charts.get('Daily Weights', {}).get('series', [])
+        self.strategy_equity = self._to_dataframe(charts.get('Strategy Equity', {}).get('series', {}))
+        self.drawdown = self._to_dataframe(charts.get('Drawdown', {}).get('series', {}))
+        self.portfolio_turnover = self._to_dataframe(charts.get('Portfolio Turnover', {}).get('series', {}))
+        self.rolling_sharpe = self._to_dataframe(charts.get('Rolling Sharpe', {}).get('series', {}))
+        self.rolling_beta = self._to_dataframe(charts.get('Rolling Beta', {}).get('series', {}))
+        self.exposure = self._to_dataframe(charts.get('Exposure', {}).get('series', {}))
+        self.trading_fees = self._to_dataframe(charts.get('Trading Fees', {}).get('series', {}))
+        self.daily_weights = self._to_dataframe(charts.get('Daily Weights', {}).get('series', {}))
+
+    def _to_dataframe(self, chart_series):
+        if not chart_series or not isinstance(chart_series, dict):
+            return chart_series
+            
+        try:
+            series_list = []
+            for series_name, series_data in chart_series.items():
+                vals = series_data.get('values', {})
+                if isinstance(vals, dict) and 't' in vals and 'v' in vals:
+                    df = pd.DataFrame({'timestamp': vals['t'], series_name: vals['v']})
+                elif isinstance(vals, list) and len(vals) > 0 and isinstance(vals[0], dict):
+                    df = pd.DataFrame([{'timestamp': d.get('x'), series_name: d.get('y')} for d in vals])
+                elif isinstance(vals, list) and len(vals) > 0 and isinstance(vals[0], list):
+                    df = pd.DataFrame(vals, columns=['timestamp', series_name])
+                else:
+                    continue
+                    
+                if not df.empty:
+                    if df['timestamp'].iloc[0] > 1e11:
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                    else:
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+                    series_list.append(df.set_index('timestamp'))
+                    
+            if not series_list:
+                return chart_series
+                
+            combined_df = pd.concat(series_list, axis=1)
+            # If there's only 1 series, return as a Pandas Series
+            if len(combined_df.columns) == 1:
+                return combined_df.iloc[:, 0]
+            return combined_df
+        except Exception:
+            return chart_series
 
     def __repr__(self):
         attrs = [
