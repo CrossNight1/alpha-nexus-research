@@ -9,8 +9,7 @@ AlphaNexusResearch.init(token='YtGKhguP5aZlDCBHQk-JeqOHbnZh-DVx', base_url='http
 from AlphaNexusResearch import data, backtest, helper
 
 print("Fetching historical data for BTC & ETH...")
-btc = data.history('BTCUSDT', asset_class='crypto', interval='1d', exchange='binancefutures')
-eth = data.history('ETHUSDT', asset_class='crypto', interval='1d', exchange='binancefutures')
+btc, eth = data.history(['BTCUSDT', 'ETHUSDT'], asset_class='crypto', interval='1d', exchange='binancefutures')
 
 print("\n[TEST 1] Testing helper.merge_data()...")
 df_close = helper.merge_data([btc, eth], target_col="close")

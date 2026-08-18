@@ -36,6 +36,11 @@ def plot_results(results, drop_series=None):
             is_empty = True
             
         if not is_dropped and not is_empty:
+            # specifically for Exposure, only show Exposure Ratio if it exists
+            if name == 'Exposure' and isinstance(data, pd.DataFrame):
+                if 'Exposure Ratio' in data.columns:
+                    data = data[['Exposure Ratio']]
+                    
             valid_metrics[name] = data
             
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
@@ -114,7 +119,7 @@ def plot_results(results, drop_series=None):
                 buttons=buttons,
                 x=0.0,
                 xanchor="left",
-                y=0.4,
+                y=1.05,
                 yanchor="bottom",
                 direction="down",
                 showactive=True
@@ -122,9 +127,9 @@ def plot_results(results, drop_series=None):
         )
         
     fig.update_layout(
-        height=700, 
-        template="plotly_dark",
-        margin=dict(l=40, r=40, t=40, b=40),
+        height=600, 
+        template="plotly_white",
+        margin=dict(l=40, r=40, t=60, b=40),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     

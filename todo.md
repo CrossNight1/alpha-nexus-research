@@ -1,4 +1,0 @@
-- Push this repo to git
-- Check and update logic of AlphaNexusResearch, seem it not complete
-- Create backtest function reuse factory core engine
-- Consider what reponse will returns to user and what data to use for visualize

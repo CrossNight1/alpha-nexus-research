@@ -1,6 +1,6 @@
 import pandas as pd
 from typing import List, Union
-from .data import AssetData
+from .core import AssetData
 
 def merge_data(assets: Union[AssetData, List[AssetData]], target_col: str = "close") -> pd.DataFrame:
     """
