@@ -20,7 +20,7 @@ def build_position(asset: AssetData, position_series: pd.Series) -> PositionTarg
     
     return PositionTarget(asset.info, position_series)
 
-def run(positions, capital: float = 100000.0, broker: str = "binance") -> dict:
+def run(positions, capital: float = 100000.0, broker: str = "binance", auto_normalize: bool = False) -> dict:
     """
     Run a vectorized backtest on the remote Alpha Nexus Go-Engine.
     
@@ -28,6 +28,7 @@ def run(positions, capital: float = 100000.0, broker: str = "binance") -> dict:
         positions: A single PositionTarget or a list of PositionTargets.
         capital: Initial capital for the backtest.
         broker: Broker fee/slippage model identifier.
+        auto_normalize: If True, dynamically scales weights so the total absolute exposure per day is exactly 1.0.
                            
     Returns:
         dict: Backtest metrics and results returned by the server.
@@ -58,6 +59,12 @@ def run(positions, capital: float = 100000.0, broker: str = "binance") -> dict:
         series_list.append(p.positions.rename(sym))
         
     combined_df = pd.concat(series_list, axis=1)
+    
+    if auto_normalize:
+        # Sum the absolute weights for each day
+        row_sums = combined_df.abs().sum(axis=1)
+        # Divide each day's weights by the sum to scale to 1.0 (avoiding divide-by-zero)
+        combined_df = combined_df.div(row_sums.replace(0, 1), axis=0)
     
     # Ensure index is named timestamp for the Arrow loader
     if combined_df.index.name not in ['timestamp', 'time']:
