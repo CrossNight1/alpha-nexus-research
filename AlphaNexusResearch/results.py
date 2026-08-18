@@ -36,10 +36,19 @@ class VectorizedResult:
         self.trading_fees = charts.get('Trading Fees', {}).get('series', [])
         self.daily_weights = charts.get('Daily Weights', {}).get('series', [])
 
-    def _repr_html_(self):
-        """Allows Jupyter/Colab to natively render this object as an HTML table."""
+    def __repr__(self):
+        attrs = [
+            'final_value', 'roi', 'strategy_equity', 'drawdown', 
+            'portfolio_turnover', 'rolling_sharpe', 'rolling_beta', 
+            'exposure', 'trading_fees', 'daily_weights'
+        ]
+        return f"<VectorizedResult Object>\nAvailable attributes:\n  - " + "\n  - ".join(attrs) + "\n\nTip: Call results.summary() to view the statistics table."
+
+    def summary(self):
+        """Displays the summary table in notebooks without returning the object."""
         if not self.stats:
-            return '<b>No statistics generated.</b>'
+            print('No statistics generated.')
+            return
             
         filtered_stats = {k: v for k, v in self.stats.items() if k not in self.drop_keys}
         df = pd.DataFrame(list(filtered_stats.items()), columns=['Metric', 'Value'])
@@ -49,12 +58,7 @@ class VectorizedResult:
             {'Metric': 'Total ROI (%)', 'Value': self.roi}
         ])
         
-        return pd.concat([top_rows, df], ignore_index=True).set_index('Metric').to_html()
-
-    def __repr__(self):
-        return "<VectorizedResult: Call .summary() for statistics, or access time-series properties like .strategy_equity>"
-
-    def summary(self):
-        """Displays the summary table in notebooks without returning the object."""
+        html_table = pd.concat([top_rows, df], ignore_index=True).set_index('Metric').to_html()
+        
         from IPython.display import display, HTML
-        display(HTML(self._repr_html_()))
+        display(HTML(html_table))
