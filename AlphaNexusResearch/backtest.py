@@ -120,5 +120,4 @@ def run(positions, capital: float = 100000.0, broker: str = "binance") -> dict:
             pass
             
         time.sleep(0.5)        
-    print("Backtest completed successfully!")
-    return resp.json()
+    raise TimeoutError("Backtest polling timed out after 300 seconds.")
