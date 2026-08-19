@@ -29,7 +29,7 @@ def build_position(asset: Union[AssetData, List[AssetData]], position_series: Un
     
     return PositionTarget(asset.info, position_series)
 
-def run(positions, capital: float = 100000.0, broker: str = "backtest_default", auto_normalize: bool = True, timeout: int = 300) -> dict:
+def run(positions, capital: float = 100000.0, broker: str = "backtest_default", auto_normalize: bool = True, timeout: int = 300, apply_signal_shift: bool = True) -> dict:
     """
     Run a vectorized backtest on the remote Alpha Nexus Go-Engine.
     
@@ -39,6 +39,10 @@ def run(positions, capital: float = 100000.0, broker: str = "backtest_default", 
         broker: Broker fee/slippage model identifier.
         auto_normalize: If True, dynamically scales weights so the total absolute exposure per day is exactly 1.0.
         timeout: Maximum seconds to wait for the backtest to complete. Defaults to 300 seconds.
+        apply_signal_shift: If True (default), shifts the entire position matrix forward by 1 bar before
+                            submitting to the engine. This prevents look-ahead bias — signals computed
+                            using close[t] will only take effect at bar t+1 (the open the engine executes at).
+                            Set to False ONLY if you have already applied .shift(1) to your signals manually.
                            
     Returns:
         VectorizedResult: Backtest results object with metrics and chart data.
@@ -74,6 +78,13 @@ def run(positions, capital: float = 100000.0, broker: str = "backtest_default", 
         series_list.append(p.positions.rename(sym))
         
     combined_df = pd.concat(series_list, axis=1)
+    
+    if apply_signal_shift:
+        # Shift signals forward by 1 bar to prevent look-ahead bias.
+        # The engine executes at the open of the NEXT bar, so position[t] should only
+        # use information available at close[t-1]. Without this shift, any signal that
+        # reads close[t] to decide position[t] is peeking into the future.
+        combined_df = combined_df.shift(1).fillna(0.0)
     
     if auto_normalize:
         # Sum the absolute weights for each day
