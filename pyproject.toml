@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alphanexus-research"
-version = "0.2.0"
+version = "0.2.1"
 authors = [
   { name="Alpha Nexus", email="contact@the20.sg" },
 ]
