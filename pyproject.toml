@@ -3,25 +3,44 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "AlphaNexusResearch"
-version = "0.1.9"
+name = "alphanexus-research"
+version = "0.2.0"
 authors = [
   { name="Alpha Nexus", email="contact@the20.sg" },
 ]
-description = "Research helper library for Alpha Nexus platform"
+description = "Research & backtesting SDK for the Alpha Nexus platform"
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.9"
+keywords = ["backtesting", "quantitative finance", "trading", "alpha nexus", "research", "vectorized"]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Developers",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Development Status :: 4 - Beta",
 ]
 dependencies = [
-    "requests",
-    "pandas",
-    "pyarrow",
-    "plotly"
+    "requests>=2.28.0",
+    "pandas>=1.5.0",
+    "pyarrow>=11.0.0",
+    "plotly>=5.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "twine",
 ]
 
 [project.urls]
 "Homepage" = "https://alpha-nexus.the20.sg"
+"Bug Tracker" = "https://github.com/CrossNight1/alpha-nexus-research/issues"
+"Source Code" = "https://github.com/CrossNight1/alpha-nexus-research"

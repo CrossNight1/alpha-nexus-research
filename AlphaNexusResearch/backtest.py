@@ -29,7 +29,7 @@ def build_position(asset: Union[AssetData, List[AssetData]], position_series: Un
     
     return PositionTarget(asset.info, position_series)
 
-def run(positions, capital: float = 100000.0, broker: str = "backtest_default", auto_normalize: bool = True) -> dict:
+def run(positions, capital: float = 100000.0, broker: str = "backtest_default", auto_normalize: bool = True, timeout: int = 300) -> dict:
     """
     Run a vectorized backtest on the remote Alpha Nexus Go-Engine.
     
@@ -38,9 +38,15 @@ def run(positions, capital: float = 100000.0, broker: str = "backtest_default", 
         capital: Initial capital for the backtest.
         broker: Broker fee/slippage model identifier.
         auto_normalize: If True, dynamically scales weights so the total absolute exposure per day is exactly 1.0.
+        timeout: Maximum seconds to wait for the backtest to complete. Defaults to 300 seconds.
                            
     Returns:
-        dict: Backtest metrics and results returned by the server.
+        VectorizedResult: Backtest results object with metrics and chart data.
+    
+    Raises:
+        TimeoutError: If the backtest does not complete within the specified timeout.
+        RuntimeError: If the server reports the backtest as failed or crashed.
+        Exception: If the backtest launch or metric fetch fails.
     """
     token = get_token()
     base_url = get_base_url()
@@ -100,41 +106,44 @@ def run(positions, capital: float = 100000.0, broker: str = "backtest_default", 
         files={'file': ('signal.parquet', buffer, 'application/octet-stream')}
     )
     
+    if resp.status_code == 429:
+        raise RuntimeError(f"Rate limit exceeded or a backtest is already running: {resp.json().get('detail', resp.text)}")
+    
     if resp.status_code != 200:
-        raise Exception(f"Backtest launch failed: {resp.text}")
+        raise Exception(f"Backtest launch failed ({resp.status_code}): {resp.text}")
         
     launch_data = resp.json()
     session_id = launch_data.get('session_id')
     print(f"Engine launched successfully. Session ID: {session_id}")
     
-    # 5. Poll for completion
+    # 5. Poll for completion with a hard timeout
     print("Waiting for results...")
     metrics_endpoint = f"{base_url}/api/runs/{session_id}/metrics"
     status_endpoint = f"{base_url}/api/runs/{session_id}/status"
     
-    while True:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
         try:
-            status_resp = requests.get(status_endpoint, headers=headers)
+            status_resp = requests.get(status_endpoint, headers=headers, timeout=10)
             if status_resp.status_code == 200:
                 status_data = status_resp.json()
                 status = status_data.get('status')
                 if status in ['completed', 'failed', 'crashed']:
                     if status != 'completed':
-                        raise Exception(f"Backtest {status}")
+                        raise RuntimeError(f"Backtest {status}. Please check your strategy code and try again.")
                         
                     # Fetch metrics
-                    metrics_resp = requests.get(metrics_endpoint, headers=headers)
+                    metrics_resp = requests.get(metrics_endpoint, headers=headers, timeout=10)
                     if metrics_resp.status_code == 200:
                         return VectorizedResult(metrics_resp.json())
                     else:
                         raise Exception(f"Failed to fetch metrics: {metrics_resp.text}")
+        except RuntimeError:
+            raise  # Don't swallow terminal errors (failed/crashed)
         except Exception as e:
-            if "Backtest failed" in str(e) or "Backtest crashed" in str(e):
-                raise
-            # Ignore network transient errors while polling, but print it if it's a code error
-            if not isinstance(e, (requests.exceptions.RequestException, json.JSONDecodeError)):
-                print(f"Polling error: {e}")
+            # Ignore transient network errors while polling
             pass
             
-        time.sleep(0.5)        
-    raise TimeoutError("Backtest polling timed out after 300 seconds.")
+        time.sleep(1)
+    
+    raise TimeoutError(f"Backtest did not complete within {timeout} seconds. You can increase the timeout by passing `timeout=<seconds>` to backtest.run().")

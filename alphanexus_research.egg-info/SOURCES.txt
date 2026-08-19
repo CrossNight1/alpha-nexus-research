@@ -1,0 +1,15 @@
+LICENSE
+README.md
+pyproject.toml
+AlphaNexusResearch/__init__.py
+AlphaNexusResearch/backtest.py
+AlphaNexusResearch/config.py
+AlphaNexusResearch/core.py
+AlphaNexusResearch/data.py
+AlphaNexusResearch/helper.py
+AlphaNexusResearch/visualize.py
+alphanexus_research.egg-info/PKG-INFO
+alphanexus_research.egg-info/SOURCES.txt
+alphanexus_research.egg-info/dependency_links.txt
+alphanexus_research.egg-info/requires.txt
+alphanexus_research.egg-info/top_level.txt
