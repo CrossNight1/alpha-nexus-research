@@ -36,6 +36,20 @@ class Client:
         except requests.RequestException as e:
             raise APIConnectionError(f"Network error during login: {e}")
 
+    def verify(self):
+        """Verifies if the current token is valid by calling the user profile endpoint."""
+        logger.info(f"Verifying session token with {self.base_url}...")
+        try:
+            resp = self.session.get(f"{self.base_url}/api/user/profile", headers=self.get_auth_headers())
+            if resp.status_code == 200:
+                logger.info("Token is valid! Alpha Nexus session initialized.")
+                return True
+            else:
+                self.token = None # Clear invalid token
+                raise AuthenticationError(f"Token verification failed: HTTP {resp.status_code} - Invalid or expired session")
+        except requests.RequestException as e:
+            raise APIConnectionError(f"Network error during token verification: {e}")
+
     def get_auth_headers(self) -> dict:
         if not self.token:
             raise AuthenticationError("No token available. Please call login() or initialize Client with a token.")

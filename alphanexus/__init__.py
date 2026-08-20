@@ -15,6 +15,7 @@ def init(token: str, base_url: str = "https://alpha-nexus.the20.sg"):
     """Convenience method to initialize the default global client with a session token."""
     _default_client.base_url = base_url.rstrip('/')
     _default_client.token = token
+    return _default_client.verify()
 
 def get_default_client() -> Client:
     """Returns the globally initialized Client instance."""
