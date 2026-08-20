@@ -58,12 +58,17 @@ def plot_results(results, drop_series=None):
     # 1. Plot Main Panel (Strategy Equity)
     eq_data = results.strategy_equity
     if isinstance(eq_data, pd.Series):
-        fig.add_trace(go.Scatter(x=eq_data.index, y=eq_data.values, name=eq_data.name or 'Equity', mode='lines'), row=1, col=1)
+        fig.add_trace(go.Scatter(x=eq_data.index, y=eq_data.values, name=eq_data.name or 'Equity', mode='lines', line=dict(width=1, color='#00E676')), row=1, col=1)
         main_trace_indices.append(total_traces)
         total_traces += 1
     elif isinstance(eq_data, pd.DataFrame):
+        colors = {'Equity': '#00E676', 'Gross Equity': '#FF3D00', 'Benchmark': '#00B0FF'}
         for col in eq_data.columns:
-            fig.add_trace(go.Scatter(x=eq_data.index, y=eq_data[col], name=col, mode='lines'), row=1, col=1)
+            color = colors.get(col, None)
+            line_kwargs = dict(width=1)
+            if color:
+                line_kwargs['color'] = color
+            fig.add_trace(go.Scatter(x=eq_data.index, y=eq_data[col], name=col, mode='lines', line=line_kwargs), row=1, col=1)
             main_trace_indices.append(total_traces)
             total_traces += 1
             
@@ -76,15 +81,15 @@ def plot_results(results, drop_series=None):
         is_visible = first_metric
         
         if isinstance(data, pd.Series):
-            fig.add_trace(go.Scatter(x=data.index, y=data.values, name=f"{name}", mode='lines', visible=is_visible), row=2, col=1)
+            fig.add_trace(go.Scatter(x=data.index, y=data.values, name=f"{name}", mode='lines', line=dict(width=1), visible=is_visible), row=2, col=1)
             indices.append(total_traces)
             total_traces += 1
         elif isinstance(data, pd.DataFrame):
             for col in data.columns:
                 if name == 'Drawdown':
-                    fig.add_trace(go.Scatter(x=data.index, y=data[col], name=col, mode='lines', fill='tozeroy', visible=is_visible), row=2, col=1)
+                    fig.add_trace(go.Scatter(x=data.index, y=data[col], name=col, mode='lines', fill='tozeroy', line=dict(width=1, color='#FF5252'), visible=is_visible), row=2, col=1)
                 else:
-                    fig.add_trace(go.Scatter(x=data.index, y=data[col], name=col, mode='lines', visible=is_visible), row=2, col=1)
+                    fig.add_trace(go.Scatter(x=data.index, y=data[col], name=col, mode='lines', line=dict(width=1), visible=is_visible), row=2, col=1)
                 
                 indices.append(total_traces)
                 total_traces += 1
@@ -126,9 +131,9 @@ def plot_results(results, drop_series=None):
     fig.update_layout(
         height=600,
         width=1200,
-        template="plotly_white",
+        template="plotly_dark",
         margin=dict(l=40, r=40, t=60, b=40),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
     )
     
     fig.show()
