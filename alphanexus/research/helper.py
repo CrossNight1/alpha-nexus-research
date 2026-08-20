@@ -1,6 +1,6 @@
 import pandas as pd
 from typing import List, Union
-from .core import AssetData
+from alphanexus.models import AssetData
 
 def merge_data(assets: Union[AssetData, List[AssetData]], target_col: str = "close") -> pd.DataFrame:
     """
@@ -19,7 +19,7 @@ def merge_data(assets: Union[AssetData, List[AssetData]], target_col: str = "clo
         
     series_list = []
     for asset in assets:
-        sym = asset.info.get('symbol', 'UNKNOWN').upper()
+        sym = asset.symbol.upper()
         
         # Make lookup case-insensitive
         cols = {str(c).lower(): c for c in asset.data.columns}

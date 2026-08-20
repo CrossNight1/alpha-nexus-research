@@ -1,11 +1,11 @@
-# AlphaNexusResearch
+# alphanexus
 
 A Python research SDK for the **Alpha Nexus** platform. Designed for notebook environments (Google Colab, Jupyter) to seamlessly fetch historical data and execute vectorized backtests using the remote Alpha Nexus engine.
 
 ## Installation
 
 ```bash
-pip install alphanexus-research
+pip install alphanexus
 ```
 
 Or, to install the latest development version directly from GitHub:
@@ -16,13 +16,17 @@ pip install git+https://github.com/CrossNight1/alpha-nexus-research.git
 
 ## Authentication
 
-You will need a **session token** from the Alpha Nexus UI. Click the **"Research in Colab"** button in the Strategy Builder to get a pre-filled code snippet with your token.
+You can authenticate using your account credentials or a session token (legacy mode) from the Alpha Nexus UI.
 
 ```python
-import AlphaNexusResearch
+import alphanexus as an
 
-AlphaNexusResearch.init(token="YOUR_SESSION_TOKEN")
-from AlphaNexusResearch import data, backtest, helper
+# Option A: Login with Email/Password
+an.login(email="YOUR_EMAIL", password="YOUR_PASSWORD")
+
+# Option B: Initialize with a Session Token
+an.init(token="YOUR_SESSION_TOKEN")
+
 print("Connected to Alpha Nexus Research!")
 ```
 
@@ -33,22 +37,23 @@ print("Connected to Alpha Nexus Research!")
 ### Example 1: Multi-Asset Momentum Strategy
 
 ```python
-import AlphaNexusResearch
+import alphanexus as an
+import alphanexus.research as anr
 import pandas as pd
 import numpy as np
 
-AlphaNexusResearch.init(token="YOUR_SESSION_TOKEN")
-from AlphaNexusResearch import data, backtest, helper
+# 1. Authenticate
+an.login(email="user@example.com", password="password")
 
-# Fetch historical data
-btc = data.history("BTCUSDT", asset_class="crypto", interval="1d", exchange="binancefutures")
-eth = data.history("ETHUSDT", asset_class="crypto", interval="1d", exchange="binancefutures")
+# 2. Fetch historical data
+btc = anr.data.history("BTCUSDT", asset_class="crypto", interval="1d", exchange="binancefutures")
+eth = anr.data.history("ETHUSDT", asset_class="crypto", interval="1d", exchange="binancefutures")
 assets = [btc, eth]
 
-# Merge close prices into a single DataFrame
-df_close = helper.merge_data(assets, target_col="close")
+# 3. Merge close prices into a single DataFrame
+df_close = anr.helper.merge_data(assets, target_col="close")
 
-# Generate signals: go long if 30-day return > 0, short if < 0
+# 4. Generate signals: go long if 30-day return > 0, short if < 0
 momentum = df_close.pct_change(periods=30)
 signals = pd.DataFrame(
     data=np.where(momentum > 0, 1.0, np.where(momentum < 0, -1.0, 0.0)),
@@ -57,14 +62,14 @@ signals = pd.DataFrame(
 )
 signals.iloc[:30] = 0.0  # Flat during lookback period
 
-# Bundle signals with asset metadata
-position_series_list = [signals[a.info["symbol"]] for a in assets]
-targets = backtest.build_position(assets, position_series_list)
+# 5. Bundle signals with asset metadata
+position_series_list = [signals[a.symbol] for a in assets]
+targets = anr.backtest.build_position(assets, position_series_list)
 
-# Run the backtest engine
-results = backtest.run(targets, capital=100000.0, broker="binancefutures")
+# 6. Run the backtest engine
+results = anr.backtest.run(targets, capital=100000.0, broker="binancefutures")
 
-# View results
+# 7. View results
 results.summary()
 results.rolling_summary()
 results.plot()
@@ -73,13 +78,14 @@ results.plot()
 ### Example 2: Single Asset SMA Crossover
 
 ```python
-import AlphaNexusResearch
+import alphanexus as an
+import alphanexus.research as anr
 import numpy as np
+import pandas as pd
 
-AlphaNexusResearch.init(token="YOUR_SESSION_TOKEN")
-from AlphaNexusResearch import data, backtest
+an.login(email="user@example.com", password="password")
 
-btc = data.history("BTCUSDT", asset_class="crypto", interval="1d", exchange="binancefutures")
+btc = anr.data.history("BTCUSDT", asset_class="crypto", interval="1d", exchange="binancefutures")
 
 close = btc.data["close"]
 fast = close.rolling(20).mean()
@@ -87,11 +93,10 @@ slow = close.rolling(50).mean()
 
 # 1 = Long, -1 = Short
 position = np.where(fast > slow, 1.0, -1.0)
-import pandas as pd
 position_series = pd.Series(position, index=close.index).fillna(0.0)
 
-target = backtest.build_position(btc, position_series)
-results = backtest.run(target, capital=100000.0)
+target = anr.backtest.build_position(btc, position_series)
+results = anr.backtest.run(target, capital=100000.0)
 
 results.summary()
 results.plot()
@@ -101,25 +106,31 @@ results.plot()
 
 ## API Reference
 
-### `AlphaNexusResearch.init(token, base_url)`
-Initialize the SDK with your session token.
-- `token` *(str)*: Session token from the Alpha Nexus UI.
+### `alphanexus.login(email, password, base_url)`
+Initialize the global SDK client using credentials.
+- `email` *(str)*: Your Alpha Nexus email.
+- `password` *(str)*: Your Alpha Nexus password.
 - `base_url` *(str, optional)*: API base URL. Defaults to `https://alpha-nexus.the20.sg`.
 
-### `data.history(symbol, asset_class, interval, exchange)`
-Fetch historical OHLCV data.
-- Returns: `AssetData` object with `.data` (DataFrame) and `.info` (dict).
+### `alphanexus.init(token, base_url)`
+Initialize the global SDK client using a session token.
+- `token` *(str)*: Your Alpha Nexus session token.
+- `base_url` *(str, optional)*: API base URL. Defaults to `https://alpha-nexus.the20.sg`.
 
-### `data.tradable_tickers(asset_class)`
+### `alphanexus.research.data.history(symbol, asset_class, interval, exchange)`
+Fetch historical OHLCV data.
+- Returns: `AssetData` dataclass with `.data` (DataFrame), `.info` (dict), and `.symbol` (str).
+
+### `alphanexus.research.data.tradable_tickers(asset_class)`
 List all available symbols for a given asset class.
 - Returns: `list[dict]`
 
-### `backtest.build_position(asset, position_series)`
+### `alphanexus.research.backtest.build_position(asset, position_series)`
 Package asset metadata with a signal Series.
 - Supports single or list of `AssetData` and `pd.Series`.
 - Returns: `PositionTarget` or `list[PositionTarget]`.
 
-### `backtest.run(positions, capital, broker, auto_normalize, timeout)`
+### `alphanexus.research.backtest.run(positions, capital, broker, auto_normalize, timeout)`
 Submit a vectorized backtest to the remote engine.
 - `capital` *(float)*: Starting capital. Default `100000.0`.
 - `broker` *(str)*: Fee model. Default `"backtest_default"`.
@@ -138,7 +149,7 @@ Submit a vectorized backtest to the remote engine.
 | `.rolling_sharpe` | Rolling Sharpe ratio |
 | `.rolling_beta` | Rolling Beta |
 
-### `helper.merge_data(assets, target_col)`
+### `alphanexus.research.helper.merge_data(assets, target_col)`
 Merge a column across multiple `AssetData` objects into a wide DataFrame.
 
 ---

@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "alphanexus-research"
-version = "0.2.1"
+name = "alphanexus"
+version = "0.3.0"
 authors = [
   { name="Alpha Nexus", email="contact@the20.sg" },
 ]

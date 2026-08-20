@@ -2,28 +2,30 @@ import pandas as pd
 import numpy as np
 
 # 1. Import and Initialize
-import AlphaNexusResearch
-# Put your token here to test live endpoints
-AlphaNexusResearch.init(token='YtGKhguP5aZlDCBHQk-JeqOHbnZh-DVx', base_url='https://alpha-nexus.the20.sg')
+import alphanexus as an
+import alphanexus.research as anr
 
-from AlphaNexusResearch import data, backtest, helper
+# Initialize the global client with a token (or use an.login(email, password))
+client = an.get_default_client()
+client.token = 'YtGKhguP5aZlDCBHQk-JeqOHbnZh-DVx'
+client.base_url = 'https://alpha-nexus.the20.sg'
 
 print("Fetching historical data for BTC & ETH...")
-btc, eth = data.history(['BTCUSDT', 'ETHUSDT'], asset_class='crypto', interval='1d', exchange='binancefutures')
+btc, eth = anr.data.history(['BTCUSDT', 'ETHUSDT'], asset_class='crypto', interval='1d', exchange='binancefutures')
 
 print("\n[TEST 1] Testing helper.merge_data()...")
-df_close = helper.merge_data([btc, eth], target_col="close")
+df_close = anr.helper.merge_data([btc, eth], target_col="close")
 print(df_close.tail(3))
 
 print("\n[TEST 2] Testing build_position() with multiple assets...")
 btc_signals = pd.Series(np.random.choice([0.0, 1.0], size=len(btc.data)), index=btc.data['datetime'])
 eth_signals = pd.Series(np.random.choice([-1.0, 0.0, 1.0], size=len(eth.data)), index=eth.data['datetime'])
 
-multi_targets = backtest.build_position([btc, eth], [btc_signals, eth_signals])
+multi_targets = anr.backtest.build_position([btc, eth], [btc_signals, eth_signals])
 print(f"Successfully built {len(multi_targets)} PositionTargets!")
 
 print("\n[TEST 3] Testing backtest.run()...")
-results = backtest.run(positions=multi_targets, auto_normalize=True)
+results = anr.backtest.run(positions=multi_targets, auto_normalize=True)
 print("\nAvailable Attributes:")
 print(results)
 

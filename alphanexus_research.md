@@ -1,27 +1,39 @@
-# AlphaNexusResearch API Reference & User Guide
+# alphanexus API Reference & User Guide
 
-`AlphaNexusResearch` is a Python SDK designed for notebook environments (like Google Colab or local Jupyter) that enables quantitative researchers to interact with the Alpha Nexus platform remotely. It provides tools to fetch historical data, generate vectorized signals using `pandas`/`numpy`, and execute highly scalable server-side backtests.
+`alphanexus` is a Python SDK designed for notebook environments (like Google Colab or local Jupyter) that enables quantitative researchers to interact with the Alpha Nexus platform remotely. It provides tools to fetch historical data, generate vectorized signals using `pandas`/`numpy`, and execute highly scalable server-side backtests.
 
 ---
 
 ## 1. Initialization
 
-### `AlphaNexusResearch.init(token, base_url)`
-Initializes the SDK connection with the remote Alpha Nexus platform. Must be called before using any other functions.
+You can initialize the SDK connection using either your account credentials or a session token (legacy mode). Must be called before using any other functions.
 
+### Option A: `alphanexus.login(email, password, base_url)`
+**Arguments:**
+- `email` (str): Your Alpha Nexus account email.
+- `password` (str): Your Alpha Nexus password.
+- `base_url` (str): The base URL (e.g., `https://alpha-nexus.the20.sg`).
+
+### Option B: `alphanexus.init(token, base_url)`
 **Arguments:**
 - `token` (str): Your Alpha Nexus session token.
-- `base_url` (str): The base URL of the Alpha Nexus API (e.g., `https://alpha-nexus.the20.sg`).
+- `base_url` (str): The base URL (e.g., `https://alpha-nexus.the20.sg`).
 
 **Example:**
 ```python
-import AlphaNexusResearch
-AlphaNexusResearch.init(token="YOUR_SESSION_TOKEN", base_url="https://alpha-nexus.the20.sg")
+import alphanexus as an
+import alphanexus.research as anr
+
+# Using Session Token
+an.init(token="YOUR_SESSION_TOKEN")
+
+# OR Using Email/Password
+# an.login(email="user@example.com", password="password")
 ```
 
 ---
 
-## 2. Data Module (`AlphaNexusResearch.data`)
+## 2. Data Module (`alphanexus.research.data`)
 
 ### `data.history(symbol, asset_class, interval, exchange)`
 Fetches historical market data for one or multiple tickers.
@@ -33,15 +45,17 @@ Fetches historical market data for one or multiple tickers.
 - `exchange` (str): The exchange platform (e.g., `'binancefutures'`, `'alpaca'`).
 
 **Returns:**
-- Returns an `AssetData` object (or a list of `AssetData` objects if a list of symbols was passed).
+- Returns an `AssetData` dataclass (or a list of `AssetData` objects if a list of symbols was passed).
 - Each `AssetData` object contains:
-  - `asset.info` (dict): Asset metadata (symbol, exchange, currency, etc.)
+  - `asset.symbol` (str): The symbol of the asset.
+  - `asset.info` (dict): Asset metadata (exchange, interval, etc.)
   - `asset.data` (pd.DataFrame): Historical OHLCV dataframe.
 
 **Example:**
 ```python
-from AlphaNexusResearch import data
-btc, eth = data.history(['BTCUSDT', 'ETHUSDT'], asset_class='crypto', interval='1d', exchange='binancefutures')
+import alphanexus.research as anr
+
+btc, eth = anr.data.history(['BTCUSDT', 'ETHUSDT'], asset_class='crypto', interval='1d', exchange='binancefutures')
 print(btc.data.head())
 ```
 
@@ -56,19 +70,19 @@ Retrieves a list of all tradable tickers supported by the platform for a given a
 
 **Example:**
 ```python
-tickers = data.tradable_tickers('crypto')
+tickers = anr.data.tradable_tickers('crypto')
 print([t['symbol'] for t in tickers])
 ```
 
 ---
 
-## 3. Helper Module (`AlphaNexusResearch.helper`)
+## 3. Helper Module (`alphanexus.research.helper`)
 
 ### `helper.merge_data(assets, target_col)`
 A powerful utility to horizontally merge a specific column from multiple `AssetData` objects into a single wide-format DataFrame. This is crucial for **cross-sectional/vectorized** signal generation (e.g., momentum across 50 assets).
 
 **Arguments:**
-- `assets` (List[AssetData]): A list of `AssetData` objects fetched via `data.history()`.
+- `assets` (List[AssetData]): A list of `AssetData` objects fetched via `anr.data.history()`.
 - `target_col` (str, default='close'): The OHLCV column to extract from each asset's data.
 
 **Returns:**
@@ -76,10 +90,8 @@ A powerful utility to horizontally merge a specific column from multiple `AssetD
 
 **Example:**
 ```python
-from AlphaNexusResearch import helper
-
 # Merge all 'close' prices into a single dataframe
-df_close = helper.merge_data([btc, eth], target_col='close')
+df_close = anr.helper.merge_data([btc, eth], target_col='close')
 # df_close now has columns: 'BTCUSDT', 'ETHUSDT'
 
 # Vectorized signal generation across all assets instantly
@@ -90,7 +102,7 @@ signals_df = pd.DataFrame(signals, index=df_close.index, columns=df_close.column
 
 ---
 
-## 4. Backtest Module (`AlphaNexusResearch.backtest`)
+## 4. Backtest Module (`alphanexus.research.backtest`)
 
 ### `backtest.build_position(asset, position_series)`
 Bundles your raw Pandas Series containing target positions (weights or signal values) with the corresponding asset metadata, preparing it for the backtest engine.
@@ -101,15 +113,13 @@ Bundles your raw Pandas Series containing target positions (weights or signal va
   - `1.0` means 100% long, `-0.5` means 50% short, `0.0` means flat.
 
 **Returns:**
-- `PositionTarget` (or `List[PositionTarget]`): An internal object ready to be fed to `backtest.run()`.
+- `PositionTarget` (or `List[PositionTarget]`): An internal dataclass ready to be fed to `backtest.run()`.
 
 **Example:**
 ```python
-from AlphaNexusResearch import backtest
-
 # Bulk build targets by iterating over the dataframe columns
-position_series_list = [signals_df[asset.info['symbol']] for asset in assets]
-multi_targets = backtest.build_position(assets, position_series_list)
+position_series_list = [signals_df[asset.symbol] for asset in assets]
+multi_targets = anr.backtest.build_position(assets, position_series_list)
 ```
 
 ### `backtest.run(positions, capital, broker, auto_normalize)`
@@ -126,7 +136,7 @@ Submits the `PositionTarget` objects to the Alpha Nexus backend engine for vecto
 
 **Example:**
 ```python
-results = backtest.run(positions=multi_targets, broker="binance_futures", auto_normalize=True)
+results = anr.backtest.run(positions=multi_targets, broker="binance_futures", auto_normalize=True)
 ```
 
 ---

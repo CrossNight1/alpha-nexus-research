@@ -1,14 +1,22 @@
 import pandas as pd
+from dataclasses import dataclass
+from typing import Dict, Any, List
 
+@dataclass
 class AssetData:
-    def __init__(self, info: dict, data: pd.DataFrame):
-        self.info = info
-        self.data = data
+    """Contains metadata and historical OHLCV data for an asset."""
+    info: Dict[str, Any]
+    data: pd.DataFrame
+    
+    @property
+    def symbol(self) -> str:
+        return self.info.get('symbol', 'UNKNOWN')
 
+@dataclass
 class PositionTarget:
-    def __init__(self, info: dict, positions: pd.Series):
-        self.info = info
-        self.positions = positions
+    """Encapsulates an asset and its target weight series."""
+    info: Dict[str, Any]
+    positions: pd.Series
 
 class VectorizedResult:
     """
@@ -74,7 +82,6 @@ class VectorizedResult:
                 return chart_series
                 
             combined_df = pd.concat(series_list, axis=1)
-            # If there's only 1 series, return as a Pandas Series
             if len(combined_df.columns) == 1:
                 return combined_df.iloc[:, 0]
             return combined_df
@@ -82,9 +89,6 @@ class VectorizedResult:
             return chart_series
 
     def rolling_summary(self) -> pd.DataFrame:
-        """
-        Returns the rolling yearly performance summary as a Pandas DataFrame.
-        """
         rw = self.metrics.get("rollingWindow", {})
         cols = rw.get("cols", [])
         data = rw.get("data", [])
@@ -93,13 +97,7 @@ class VectorizedResult:
         return pd.DataFrame(data, columns=cols).set_index("period")
 
     def plot(self, drop_series=None):
-        """
-        Plots an interactive 2-panel chart of the backtest results.
-        
-        Args:
-            drop_series (list, optional): A list of metric names (e.g., ['daily_weights']) to exclude from the sub-panel dropdown.
-        """
-        from .visualize import plot_results
+        from alphanexus.research.visualize import plot_results
         plot_results(self, drop_series)
 
     def __repr__(self):
@@ -111,7 +109,6 @@ class VectorizedResult:
         return f"<VectorizedResult>\n\nAvailable attributes:\n  - " + "\n  - ".join(attrs) + "\n\nTip:\n- Call results.summary() to view the statistics table.\n- Call results.rolling_summary() to view the rolling yearly performance summary.\n- Call results.plot() to view the charts."
 
     def summary(self):
-        """Displays the summary table in notebooks without returning the object."""
         if not self.stats:
             print('No statistics generated.')
             return

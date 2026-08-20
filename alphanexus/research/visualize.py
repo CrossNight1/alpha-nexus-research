@@ -68,7 +68,7 @@ def plot_results(results, drop_series=None):
             total_traces += 1
             
     # 2. Plot Sub Panels
-    sub_trace_groups = {} # maps metric_name -> list of trace indices
+    sub_trace_groups = {}
     
     first_metric = True
     for name, data in valid_metrics.items():
@@ -81,8 +81,6 @@ def plot_results(results, drop_series=None):
             total_traces += 1
         elif isinstance(data, pd.DataFrame):
             for col in data.columns:
-                # Use bar chart for weights/turnover/fees, otherwise lines
-                mode = 'lines'
                 if name == 'Drawdown':
                     fig.add_trace(go.Scatter(x=data.index, y=data[col], name=col, mode='lines', fill='tozeroy', visible=is_visible), row=2, col=1)
                 else:
@@ -97,7 +95,6 @@ def plot_results(results, drop_series=None):
     # 3. Create Updatemenus (Dropdown)
     buttons = []
     for name, indices in sub_trace_groups.items():
-        # Visibility array: Main traces always True, this sub-group True, rest False
         vis_array = [False] * total_traces
         for idx in main_trace_indices:
             vis_array[idx] = True
@@ -108,7 +105,7 @@ def plot_results(results, drop_series=None):
             label=name,
             method="update",
             args=[{"visible": vis_array},
-                  {"annotations[1].text": name}] # Update the subtitle
+                  {"annotations[1].text": name}]
         )
         buttons.append(button)
         
@@ -142,7 +139,6 @@ def plot_signals(df: pd.DataFrame, position_col='position', price_col='close'):
     """
     fig = go.Figure()
     
-    # Plot price
     fig.add_trace(go.Scatter(
         x=df.index if isinstance(df.index, pd.DatetimeIndex) else df['timestamp'],
         y=df[price_col],
