@@ -121,7 +121,7 @@ def plot_results(results, drop_series=None):
                 buttons=buttons,
                 x=0.0,
                 xanchor="left",
-                y=1.05,
+                y=1.12,
                 yanchor="bottom",
                 direction="down",
                 showactive=True
@@ -129,11 +129,15 @@ def plot_results(results, drop_series=None):
         )
         
     fig.update_layout(
-        height=600,
+        height=700,
         width=1200,
         template="plotly_dark",
-        margin=dict(l=40, r=40, t=60, b=40),
-        legend=dict(orientation="h", yanchor="top", y=-0.1, xanchor="center", x=0.5)
+        margin=dict(l=40, r=40, t=80, b=80),
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.12
+        )
     )
     
     fig.show()
